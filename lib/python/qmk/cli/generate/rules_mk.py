@@ -59,9 +59,9 @@ def generate_rules_mk(cli):
 
     # Iterate through the info_rules map to generate basic rules
     for rules_key, info_dict in info_rules_map.items():
-        new_entry = process_mapping_rule(kb_info_json, rules_key, info_dict)
-
-        if new_entry:
+        if new_entry := process_mapping_rule(
+            kb_info_json, rules_key, info_dict
+        ):
             rules_mk_lines.append(new_entry)
 
     # Iterate through features to enable/disable them
@@ -91,7 +91,7 @@ def generate_rules_mk(cli):
     if cli.args.output:
         cli.args.output.parent.mkdir(parents=True, exist_ok=True)
         if cli.args.output.exists():
-            cli.args.output.replace(cli.args.output.parent / (cli.args.output.name + '.bak'))
+            cli.args.output.replace(cli.args.output.parent / f'{cli.args.output.name}.bak')
         cli.args.output.write_text(rules_mk)
 
         if cli.args.quiet:

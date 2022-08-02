@@ -6,7 +6,7 @@ from milc import cli
 
 
 @cli.argument('-n', '--dry-run', arg_only=True, action='store_true', help="Don't actually format.")
-@cli.subcommand("Format python code according to QMK's style.", hidden=False if cli.config.user.developer else True)
+@cli.subcommand("Format python code according to QMK's style.", hidden=not cli.config.user.developer)
 def format_python(cli):
     """Format python code according to QMK's style.
     """

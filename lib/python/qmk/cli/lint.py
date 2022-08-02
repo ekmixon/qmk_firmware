@@ -50,12 +50,9 @@ def lint(cli):
 
     # Keymap specific checks
     if cli.config.lint.keymap:
-        keymap_path = locate_keymap(cli.config.lint.keyboard, cli.config.lint.keymap)
-
-        if not keymap_path:
-            ok = False
-            cli.log.error("Can't find %s keymap for %s keyboard.", cli.config.lint.keymap, cli.config.lint.keyboard)
-        else:
+        if keymap_path := locate_keymap(
+            cli.config.lint.keyboard, cli.config.lint.keymap
+        ):
             keymap_readme = keymap_path.parent / 'readme.md'
             if not keymap_readme.exists():
                 cli.log.warning('Missing %s', keymap_readme)
@@ -63,6 +60,9 @@ def lint(cli):
                 if cli.config.lint.strict:
                     ok = False
 
+        else:
+            ok = False
+            cli.log.error("Can't find %s keymap for %s keyboard.", cli.config.lint.keymap, cli.config.lint.keyboard)
     # Check and report the overall status
     if ok:
         cli.log.info('Lint check passed!')

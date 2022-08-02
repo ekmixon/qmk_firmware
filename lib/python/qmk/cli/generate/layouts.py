@@ -60,12 +60,12 @@ def generate_layouts(cli):
             continue
 
         layout_keys = []
-        layout_matrix = [['KC_NO' for i in range(col_num)] for i in range(row_num)]
+        layout_matrix = [['KC_NO' for _ in range(col_num)] for _ in range(row_num)]
 
         for i, key in enumerate(kb_info_json['layouts'][layout_name]['layout']):
             row = key['matrix'][0]
             col = key['matrix'][1]
-            identifier = 'k%s%s' % (ROW_LETTERS[row], COL_LETTERS[col])
+            identifier = f'k{ROW_LETTERS[row]}{COL_LETTERS[col]}'
 
             try:
                 layout_matrix[row][col] = identifier
@@ -75,19 +75,22 @@ def generate_layouts(cli):
                 cli.log.error('Matrix data out of bounds for layout %s at index %s (%s): %s, %s', layout_name, i, key_name, row, col)
                 return False
 
-        layouts_h_lines.append('')
-        layouts_h_lines.append('#define %s(%s) {\\' % (layout_name, ', '.join(layout_keys)))
+        layouts_h_lines.extend(
+            ('', '#define %s(%s) {\\' % (layout_name, ', '.join(layout_keys)))
+        )
 
-        rows = ', \\\n'.join(['\t {' + ', '.join(row) + '}' for row in layout_matrix])
-        rows += ' \\'
-        layouts_h_lines.append(rows)
-        layouts_h_lines.append('}')
+        rows = (
+            ', \\\n'.join(
+                ['\t {' + ', '.join(row) + '}' for row in layout_matrix]
+            )
+            + ' \\'
+        )
 
+        layouts_h_lines.extend((rows, '}'))
     for alias, target in kb_info_json.get('layout_aliases', {}).items():
-        layouts_h_lines.append('')
-        layouts_h_lines.append(f'#ifndef {alias}')
-        layouts_h_lines.append(f'#   define {alias} {target}')
-        layouts_h_lines.append('#endif')
+        layouts_h_lines.extend(
+            ('', f'#ifndef {alias}', f'#   define {alias} {target}', '#endif')
+        )
 
     # Show the results
     layouts_h = '\n'.join(layouts_h_lines) + '\n'
@@ -95,7 +98,7 @@ def generate_layouts(cli):
     if cli.args.output:
         cli.args.output.parent.mkdir(parents=True, exist_ok=True)
         if cli.args.output.exists():
-            cli.args.output.replace(cli.args.output.parent / (cli.args.output.name + '.bak'))
+            cli.args.output.replace(cli.args.output.parent / f'{cli.args.output.name}.bak')
         cli.args.output.write_text(layouts_h)
 
         if not cli.args.quiet:

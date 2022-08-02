@@ -20,12 +20,7 @@ time_fmt = '%Y-%m-%d-%H:%M:%S'
 def _find_make():
     """Returns the correct make command for this environment.
     """
-    make_cmd = os.environ.get('MAKE')
-
-    if not make_cmd:
-        make_cmd = 'gmake' if shutil.which('gmake') else 'make'
-
-    return make_cmd
+    return os.environ.get('MAKE') or ('gmake' if shutil.which('gmake') else 'make')
 
 
 def create_make_target(target, parallel=1, **env_vars):
@@ -46,12 +41,9 @@ def create_make_target(target, parallel=1, **env_vars):
 
         A command that can be run to make the specified keyboard and keymap
     """
-    env = []
     make_cmd = _find_make()
 
-    for key, value in env_vars.items():
-        env.append(f'{key}={value}')
-
+    env = [f'{key}={value}' for key, value in env_vars.items()]
     return [make_cmd, *get_make_parallel_args(parallel), *env, target]
 
 
@@ -104,10 +96,9 @@ def get_git_version(current_time, repo_dir='.', check_dir='.'):
         if git_describe.returncode == 0:
             return git_describe.stdout.strip()
 
-        else:
-            cli.log.warn(f'"{" ".join(git_describe_cmd)}" returned error code {git_describe.returncode}')
-            print(git_describe.stderr)
-            return current_time
+        cli.log.warn(f'"{" ".join(git_describe_cmd)}" returned error code {git_describe.returncode}')
+        print(git_describe.stderr)
+        return current_time
 
     return current_time
 
@@ -121,7 +112,7 @@ def get_make_parallel_args(parallel=1):
         # 0 or -1 means -j without argument (unlimited jobs)
         parallel_args.append('--jobs')
     else:
-        parallel_args.append('--jobs=' + str(parallel))
+        parallel_args.append(f'--jobs={str(parallel)}')
 
     if int(parallel) != 1:
         # If more than 1 job is used, synchronize parallel output by target
@@ -133,11 +124,7 @@ def get_make_parallel_args(parallel=1):
 def create_version_h(skip_git=False, skip_all=False):
     """Generate version.h contents
     """
-    if skip_all:
-        current_time = "1970-01-01-00:00:00"
-    else:
-        current_time = strftime(time_fmt)
-
+    current_time = "1970-01-01-00:00:00" if skip_all else strftime(time_fmt)
     if skip_git:
         git_version = "NA"
         chibios_version = "NA"
@@ -147,7 +134,7 @@ def create_version_h(skip_git=False, skip_all=False):
         chibios_version = get_git_version(current_time, "chibios", "os")
         chibios_contrib_version = get_git_version(current_time, "chibios-contrib", "os")
 
-    version_h_lines = f"""/* This file was automatically generated. Do not edit or copy.
+    return f"""/* This file was automatically generated. Do not edit or copy.
  */
 
 #pragma once
@@ -157,8 +144,6 @@ def create_version_h(skip_git=False, skip_all=False):
 #define CHIBIOS_VERSION "{chibios_version}"
 #define CHIBIOS_CONTRIB_VERSION "{chibios_contrib_version}"
 """
-
-    return version_h_lines
 
 
 def compile_configurator_json(user_keymap, bootloader=None, parallel=1, **env_vars):
@@ -213,9 +198,7 @@ def compile_configurator_json(user_keymap, bootloader=None, parallel=1, **env_va
     if bootloader:
         make_command.append(bootloader)
 
-    for key, value in env_vars.items():
-        make_command.append(f'{key}={value}')
-
+    make_command.extend(f'{key}={value}' for key, value in env_vars.items())
     make_command.extend([
         f'KEYBOARD={user_keymap["keyboard"]}',
         f'KEYMAP={user_keymap["keymap"]}',
@@ -281,7 +264,7 @@ def git_get_branch():
     """Returns the current branch for a repo, or None.
     """
     git_branch = cli.run(['git', 'branch', '--show-current'])
-    if not git_branch.returncode != 0 or not git_branch.stdout:
+    if git_branch.returncode == 0 or not git_branch.stdout:
         # Workaround for Git pre-2.22
         git_branch = cli.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
 

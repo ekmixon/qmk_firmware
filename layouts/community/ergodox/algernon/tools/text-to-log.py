@@ -73,34 +73,22 @@ charmap = {
 }
 
 def lookup_char(layer, ch):
-    if ch in charmap:
-        return charmap[ch]
-    return None
+    return charmap[ch] if ch in charmap else None
 
 def process_char(layer, ch, out=sys.stdout):
-    keys = lookup_char(layer, ch)
-    if not keys:
-        print ("Unknown char: %s" % ch, file=sys.stderr)
-    else:
+    if keys := lookup_char(layer, ch):
         for (c, r) in keys:
             print ("KL: col=%d, row=%d, pressed=1, layer=%s" % (r, c, layer), file=out)
             print ("KL: col=%d, row=%d, pressed=0, layer=%s" % (r, c, layer), file=out)
 
+    else:
+        print(f"Unknown char: {ch}", file=sys.stderr)
+
 def process_file(fn, layer, out=sys.stdout):
     with open(fn, "r") as f:
-        ch = f.read(1)
-        while ch:
+        while ch := f.read(1):
             process_char(layer, ch, out)
-            ch = f.read(1)
 
-if sys.argv[1] == '-':
-    out='/dev/stdin'
-else:
-    out=sys.argv[1]
-
-if len(sys.argv) >= 2:
-    layer = 'ADORE'
-else:
-    layer = sys.argv[2]
-
+out = '/dev/stdin' if sys.argv[1] == '-' else sys.argv[1]
+layer = 'ADORE' if len(sys.argv) >= 2 else sys.argv[2]
 process_file(out, layer = layer)

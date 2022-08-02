@@ -46,10 +46,7 @@ class Heatmap(object):
 
     def set_attr_at(self, block, n, attr, fn, val):
         blk = self.heatmap[block][n]
-        if attr in blk:
-            blk[attr] = fn(blk[attr], val)
-        else:
-            blk[attr] = fn(None, val)
+        blk[attr] = fn(blk[attr], val) if attr in blk else fn(None, val)
 
     def coord(self, col, row):
         return self.coords[row][col]
@@ -102,7 +99,7 @@ class Heatmap(object):
 
     def update_log(self, coords):
         (c, r) = coords
-        if not (c, r) in self.log:
+        if (c, r) not in self.log:
             self.log[(c, r)] = 0
         self.log[(c, r)] = self.log[(c, r)] + 1
         self.total = self.total + 1
@@ -110,7 +107,7 @@ class Heatmap(object):
             self.max_cnt = self.log[(c, r)]
 
     def get_heatmap(self):
-        with open("%s/heatmap-layout.%s.json" % (dirname(sys.argv[0]), self.layout), "r") as f:
+        with open(f"{dirname(sys.argv[0])}/heatmap-layout.{self.layout}.json", "r") as f:
             self.heatmap = json.load (f)
 
         ## Reset colors
@@ -143,7 +140,7 @@ class Heatmap(object):
                     usage[0][4] = usage[0][4] + self.log[(c, r)]
                 else:
                     usage[1][0] = usage[1][0] + self.log[(c, r)]
-            elif r == 4 and (c == 4 or c == 9): # bottom row thumb keys
+            elif r == 4 and c in [4, 9]: # bottom row thumb keys
                 if c <= 6: # left side
                     usage[0][4] = usage[0][4] + self.log[(c, r)]
                 else:
@@ -207,14 +204,12 @@ def dump_all(out_dir, heatmaps):
 
     print ('{t.underline}{outdir}{t.normal}\n'.format(t=t, outdir=out_dir))
 
-    keys = list(heatmaps.keys())
-    keys.sort()
-
+    keys = sorted(heatmaps.keys())
     for layer in keys:
         if len(heatmaps[layer].log) == 0:
             continue
 
-        with open ("%s/%s.json" % (out_dir, layer), "w") as f:
+        with open(f"{out_dir}/{layer}.json", "w") as f:
             json.dump(heatmaps[layer].get_heatmap(), f)
         stats[layer] = heatmaps[layer].get_stats()
 
@@ -246,7 +241,7 @@ def process_line(line, heatmaps, opts, stamped_log = None):
                    file = stamped_log, end = '')
         stamped_log.flush()
 
-    (c, r, l) = (int(m.group (2)), int(m.group (1)), m.group (4))
+    (c, r, l) = int(m[2]), int(m[1]), m[4]
     if (c, r) not in opts.allowed_keys:
         return False
 
@@ -255,25 +250,24 @@ def process_line(line, heatmaps, opts, stamped_log = None):
     return True
 
 def setup_allowed_keys(opts):
+    incmap={}
     if len(opts.only_key):
-        incmap={}
         for v in opts.only_key:
             m = re.search ('(\d+),(\d+)', v)
             if not m:
                 continue
-            (c, r) = (int(m.group(1)), int(m.group(2)))
+            (c, r) = int(m[1]), int(m[2])
             incmap[(c, r)] = True
     else:
-        incmap={}
-        for r in range(0, 6):
-            for c in range(0, 14):
+        for r in range(6):
+            for c in range(14):
                 incmap[(c, r)] = True
 
         for v in opts.ignore_key:
             m = re.search ('(\d+),(\d+)', v)
             if not m:
                 continue
-            (c, r) = (int(m.group(1)), int(m.group(2)))
+            (c, r) = int(m[1]), int(m[2])
             del(incmap[(c, r)])
 
     return incmap
@@ -293,7 +287,7 @@ def main(opts):
     if not opts.one_shot:
 
         try:
-            with open("%s/stamped-log" % out_dir, "r") as f:
+            with open(f"{out_dir}/stamped-log", "r") as f:
                 while True:
                     line = f.readline()
                     if not line:
@@ -303,7 +297,7 @@ def main(opts):
         except Exception:
             pass
 
-        stamped_log = open ("%s/stamped-log" % (out_dir), "a+")
+        stamped_log = open(f"{out_dir}/stamped-log", "a+")
     else:
         stamped_log = None
 

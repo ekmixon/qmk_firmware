@@ -47,7 +47,7 @@ def generate_keyboard_h(cli):
     if cli.args.output:
         cli.args.output.parent.mkdir(parents=True, exist_ok=True)
         if cli.args.output.exists():
-            cli.args.output.replace(cli.args.output.parent / (cli.args.output.name + '.bak'))
+            cli.args.output.replace(cli.args.output.parent / f'{cli.args.output.name}.bak')
         cli.args.output.write_text(keyboard_h)
 
         if not cli.args.quiet:

@@ -39,10 +39,10 @@ def template_json(keyboard):
         keyboard
             The keyboard to return a template for.
     """
-    template_file = Path('keyboards/%s/templates/keymap.json' % keyboard)
+    template_file = Path(f'keyboards/{keyboard}/templates/keymap.json')
     template = {'keyboard': keyboard}
     if template_file.exists():
-        template.update(json.load(template_file.open(encoding='utf-8')))
+        template |= json.load(template_file.open(encoding='utf-8'))
 
     return template
 
@@ -56,13 +56,12 @@ def template_c(keyboard):
         keyboard
             The keyboard to return a template for.
     """
-    template_file = Path('keyboards/%s/templates/keymap.c' % keyboard)
-    if template_file.exists():
-        template = template_file.read_text(encoding='utf-8')
-    else:
-        template = DEFAULT_KEYMAP_C
-
-    return template
+    template_file = Path(f'keyboards/{keyboard}/templates/keymap.c')
+    return (
+        template_file.read_text(encoding='utf-8')
+        if template_file.exists()
+        else DEFAULT_KEYMAP_C
+    )
 
 
 def _strip_any(keycode):
@@ -110,9 +109,7 @@ def keymap_completer(prefix, action, parser, parsed_args):
         if parsed_args.keyboard:
             return list_keymaps(parsed_args.keyboard)
 
-        keyboard = find_keyboard_from_dir()
-
-        if keyboard:
+        if keyboard := find_keyboard_from_dir():
             return list_keymaps(keyboard)
 
     except Exception as e:
@@ -197,7 +194,7 @@ def generate_c(keyboard, layout, layers):
     layer_txt = []
     for layer_num, layer in enumerate(layers):
         if layer_num != 0:
-            layer_txt[-1] = layer_txt[-1] + ','
+            layer_txt[-1] = f'{layer_txt[-1]},'
         layer = map(_strip_any, layer)
         layer_keys = ', '.join(layer)
         layer_txt.append('\t[%s] = %s(%s)' % (layer_num, layout, layer_keys))
@@ -270,18 +267,14 @@ def locate_keymap(keyboard, keymap):
     """Returns the path to a keymap for a specific keyboard.
     """
     if not qmk.path.is_keyboard(keyboard):
-        raise KeyError('Invalid keyboard: ' + repr(keyboard))
+        raise KeyError(f'Invalid keyboard: {repr(keyboard)}')
 
     # Check the keyboard folder first, last match wins
     checked_dirs = ''
     keymap_path = ''
 
     for dir in keyboard.split('/'):
-        if checked_dirs:
-            checked_dirs = '/'.join((checked_dirs, dir))
-        else:
-            checked_dirs = dir
-
+        checked_dirs = '/'.join((checked_dirs, dir)) if checked_dirs else dir
         keymap_dir = Path('keyboards') / checked_dirs / 'keymaps'
 
         if (keymap_dir / keymap / 'keymap.c').exists():
@@ -380,7 +373,7 @@ def _c_preprocess(path, stdin=DEVNULL):
     return pre_processed_keymap.stdout
 
 
-def _get_layers(keymap):  # noqa C901 : until someone has a good idea how to simplify/split up this code
+def _get_layers(keymap):    # noqa C901 : until someone has a good idea how to simplify/split up this code
     """ Find the layers in a keymap.c file.
 
     Args:
@@ -389,12 +382,12 @@ def _get_layers(keymap):  # noqa C901 : until someone has a good idea how to sim
     Returns:
         a dictionary containing the parsed keymap
     """
-    layers = list()
+    layers = []
     opening_braces = '({['
     closing_braces = ')}]'
     keymap_certainty = brace_depth = 0
     is_keymap = is_layer = is_adv_kc = False
-    layer = dict(name=False, layout=False, keycodes=list())
+    layer = dict(name=False, layout=False, keycodes=[])
     for line in lex(keymap, CLexer()):
         if line[0] is Token.Name:
             if is_keymap:
@@ -427,7 +420,6 @@ def _get_layers(keymap):  # noqa C901 : until someone has a good idea how to sim
                         layer['keycodes'][-1] += kc
                     else:
                         layer['keycodes'].append(kc)
-
         # The keymaps array's signature:
         # const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS]
         #
@@ -514,19 +506,13 @@ def parse_keymap_c(keymap_file, use_cpp=True):
         a dictionary containing the parsed keymap
     """
     if keymap_file == '-':
-        if use_cpp:
-            keymap_file = _c_preprocess(None, sys.stdin)
-        else:
-            keymap_file = sys.stdin.read()
+        keymap_file = _c_preprocess(None, sys.stdin) if use_cpp else sys.stdin.read()
+    elif use_cpp:
+        keymap_file = _c_preprocess(keymap_file)
     else:
-        if use_cpp:
-            keymap_file = _c_preprocess(keymap_file)
-        else:
-            keymap_file = keymap_file.read_text(encoding='utf-8')
+        keymap_file = keymap_file.read_text(encoding='utf-8')
 
-    keymap = dict()
-    keymap['layers'] = _get_layers(keymap_file)
-    return keymap
+    return {'layers': _get_layers(keymap_file)}
 
 
 def c2json(keyboard, keymap, keymap_file, use_cpp=True):
@@ -549,7 +535,7 @@ def c2json(keyboard, keymap, keymap_file, use_cpp=True):
     keymap_json = parse_keymap_c(keymap_file, use_cpp)
 
     dirty_layers = keymap_json.pop('layers', None)
-    keymap_json['layers'] = list()
+    keymap_json['layers'] = []
     for layer in dirty_layers:
         layer.pop('name')
         layout = layer.pop('layout')
